@@ -1,0 +1,129 @@
+import * as React from "react";
+const usericon: any = require("./images/UserImage.png");
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faPaperclip } from "@fortawesome/free-solid-svg-icons";
+import styles from "./Universe2Design.module.scss";
+
+import { sp } from '@pnp/sp/presets/all';
+import { IDropdownOption } from 'office-ui-fabric-react/lib/components/Dropdown';
+
+import keyword from 'keyword-extractor';
+import { TextField,Label,PrimaryButton } from 'office-ui-fabric-react/lib';
+import { SPHttpClient, SPHttpClientResponse, SPHttpClientConfiguration } from '@microsoft/sp-http';
+
+import './ShareAnIdea.css';
+
+//export default class shareAnIdea extends React.Component<any,any> {
+  export default class QuickLinks  extends React.Component<any,any> {
+
+    constructor(props){
+      super(props);
+      this.state={
+        QuickLinkColl:[],
+        ProductColl:[],
+        itemUpdated:''
+      }
+      this.onChangeDropdown=this.onChangeDropdown.bind(this);
+      this._onChange=this._onChange.bind(this); 
+    }
+
+    componentDidMount(){
+      const uniqueTags = [];
+        this.GetRequestAttachment().then(res=>{
+            debugger;
+            res.map(item=>{
+                debugger;
+                uniqueTags.push({ID:item.ID,Title:item.Title,Category:item.Category,QuickLinkVisible:item.QuickLinkVisible,ImgURL:item.AttachmentFiles[0].ServerRelativeUrl})
+              })
+            debugger;
+            this.setState({QuickLinkColl:[...uniqueTags]},()=>{
+              //alert('Item Updated')
+            })
+            this.setState({itemUpdated:'true'});
+        })
+    }
+  
+    public GetRequestAttachment(){
+        debugger;
+        return new Promise<any[]>((resolve,reject)=>{
+        //var query = "?$select=Title,Category,QuickLinkVisible,Attachments,AttachmentFiles&$expand=AttachmentFiles,Category,QuickLinkVisible";
+        var query = "?$select=Title,ID,Category/Title,Category/ID,QuickLinkVisible/Title,QuickLinkVisible/ID,Attachments,AttachmentFiles&$expand=AttachmentFiles";
+        let apiUrl = "https://rehman365.sharepoint.com/sites/ICICIUniverse20/_api/web/Lists/getbytitle('QuickLinks')/items"+query;
+          
+          let httpClient: SPHttpClient = this.props.context.spHttpClient;  
+            httpClient.get(apiUrl, SPHttpClient.configurations.v1).then(response => {
+              debugger;
+              response.json().then(responseJson => {
+                debugger;
+                
+                resolve(responseJson.value); 
+                debugger;        
+                  },(error:any[])=>{
+                      console.log(error);
+                      reject('Error Occured');
+                  });
+              })
+          })
+      }
+
+    private _onChange(event){
+      event.preventDefault();
+      this.setState({showModal:false});
+      this.setState({FormDescription: event.target.value});
+      debugger;
+      let extraction_result =
+      keyword.extract(event.target.value,{
+      });
+      this.setState({allUserTypedColl:extraction_result}); 
+      console.log(extraction_result);
+      debugger;
+    }
+  
+  public BindDropdown(listName: string):Promise<IDropdownOption[]>{
+    return new Promise<IDropdownOption[]>(async(resolve,reject)=>{
+        sp.web.lists.getByTitle(listName).items
+        .orderBy("ID", true).select('Title','ID')
+        .get()
+        .then((results:any)=>{
+            debugger;
+            //this.setState({ProductColl,results})
+            var DropdownOption : IDropdownOption[] = [];       
+            results.map((result)=>{
+            DropdownOption.push({key:result.Id,text:result.Title});
+            });
+            resolve(DropdownOption);
+        },(error:any)=>{
+            reject('Error Occured');
+        })
+        .catch(function(data) {
+            console.log(data.data.responseBody["odata.error"].message.value);
+        });
+    }); 
+  }
+
+  public onChangeDropdown(e){
+    debugger;
+    this.setState({ProductCategory: e.target.value})
+    var itemColl=this.state.AllProductColl.filter(value => value.Title == e.target.value);
+    debugger;
+    this.setState({ProductColl: itemColl});
+    this.setState({CollUpdated:true})
+  }
+
+  public render(): React.ReactElement {
+    const {QuickLinkColl}=this.state;
+    debugger
+      return(
+        <div>
+          <h3>Quick Link Header</h3>
+          {QuickLinkColl && QuickLinkColl.map(item=>{
+            debugger;
+            return(<>
+            <img src={item.ImgURL}/>
+            <p>{item.Title}</p>
+            </>)
+          })}
+        </div>
+      )
+  }
+}
